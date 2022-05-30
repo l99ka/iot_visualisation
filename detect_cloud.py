@@ -1,11 +1,44 @@
 import cv2
 import numpy as np
+import random
+
+from paho.mqtt import client as mqtt_client
+
+def connect_mqtt():
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT Broker!")
+        else:
+            print("Failed to connect, return code %d\n", rc)
+
+    client = mqtt_client.Client(client_id)
+    client.on_connect = on_connect
+    client.connect(broker, port)
+    return client
+
+def publish(client, message):
+    msg = f"messages: {message}"
+    result = client.publish(topic, msg)
+    status = result[0]
+    if status == 0:
+        print(f"Send `{msg}` to topic `{topic}`")
+    else:
+        print(f"Failed to send message to topic {topic}")
+
+broker = 'broker.emqx.io'
+port = 1883
+topic = "/python/mqtt"
+# generate client ID with pub prefix randomly
+client_id = f'python-mqtt-{random.randint(0, 1000)}'
+client = connect_mqtt()
+client.loop_start()
 
 cap = cv2.VideoCapture("videos/video.mov")
 previous_frame = None
 onceIndex = 0
 detectIndex = 0
 locker = 0
+
 
 while True:
     success, img_rgb = cap.read()
@@ -76,10 +109,12 @@ while True:
         # print("-detectIndex:  " + str(detectIndex))
 
     if detectIndex > 60 and locker == 0:
-        print("Команда:  ВКЛЮЧИТЬ   (detectIndex:" + str(detectIndex) + ")")
+        publish(client, "ON")
+        print("detectIndex:" + str(detectIndex))
         locker = 1
     elif detectIndex < 50 and locker == 1:
-        print("Команда:  ВЫКЛЮЧИТЬ   (detectIndex:" + str(detectIndex) + ")")
+        publish(client, "ON")
+        print("detectIndex:" + str(detectIndex))
         locker = 0
 
 
